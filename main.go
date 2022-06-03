@@ -7,10 +7,9 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 	"log"
 	"os"
+	"strconv"
 	"time"
 )
-
-//TODO add switch to chain certs or only domain
 
 func readDomains(path string) []string {
 	var domainsList []string
@@ -33,7 +32,8 @@ func testDomain(domain string, chain bool) {
 	conn, err := tls.Dial("tcp", domain+":443", nil)
 	if err != nil {
 		log.Println("Error in Dial", err)
-		//TODO add counter of failed domains
+		errDomainCounter := fmt.Sprintf(`error_domains{fqdn="%s"}`, domain)
+		metrics.GetOrCreateCounter(errDomainCounter).Add(1)
 		return
 	}
 	defer conn.Close()
@@ -62,11 +62,22 @@ func testDomain(domain string, chain bool) {
 	}
 }
 
+func getEnv(key string, defaultVal string) string {
+	if value, exists := os.LookupEnv(key); exists {
+		return value
+	}
+	return defaultVal
+}
+
 func main() {
-	domains := readDomains("./domains")
+	checkCertChain, _ := strconv.ParseBool(getEnv("CS_CHAIN", "false"))
+	domainsPath := getEnv("CS_DOMAINS", "./domains")
+
+	log.Printf("Processing domains list from: %s", domainsPath)
+	domains := readDomains(domainsPath)
 	for _, domain := range domains {
 		log.Printf("Processing domain: %s", domain)
-		testDomain(domain, false)
+		testDomain(domain, checkCertChain)
 	}
 
 	metrics.WritePrometheus(os.Stdout, false)

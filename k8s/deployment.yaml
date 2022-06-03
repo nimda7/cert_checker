@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cert_checker
+  labels:
+    app: cert_checker
+spec:
+  selector:
+    matchLabels:
+      app: cert_checker
+  template:
+    metadata:
+      labels:
+        app: cert_checker
+    spec:
+      containers:
+        - name: app
+          image: cert_checker
+          volumeMounts:
+            - name: domains
+              mountPath: /domains
+      volumes:
+        - name: domains
+          configMap:
+            name: domains
